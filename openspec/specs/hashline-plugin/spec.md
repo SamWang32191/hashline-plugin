@@ -5,11 +5,11 @@ TBD.
 ## Requirements
 
 ### Requirement: Plugin exposes hashline capability entrypoint
-The system SHALL provide a loadable plugin entrypoint that initializes hashline-related configuration, tool registration, and hook registration in a deterministic order.
+The system SHALL provide a loadable plugin entrypoint that registers hashline-related tools and hooks in a deterministic order.
 
 #### Scenario: Plugin initializes hashline components
 - **WHEN** the host loads the plugin
-- **THEN** the plugin SHALL initialize configuration before registering tools and hooks
+- **THEN** the plugin SHALL register its hashline tools and hooks during plugin initialization
 
 ### Requirement: Plugin supports hashline-aware read output
 The system SHALL transform supported read results into a hashline-aware line format that preserves the original line number and attaches a stable hash token for each emitted line.
@@ -29,15 +29,19 @@ The system SHALL expose an edit capability that accepts hashline-based edit inst
 - **WHEN** the caller submits edit instructions with stale or mismatched hashline references
 - **THEN** the system SHALL reject the edit and return an actionable mismatch error without modifying the file
 
-### Requirement: Plugin configuration controls hashline behavior
-The system SHALL provide configuration flags that enable or disable hashline edit behavior and related hooks.
+### Requirement: Plugin always enables core hashline behavior
+The system SHALL register the hashline edit capability and apply hashline-aware read enhancement whenever the plugin is loaded, without requiring hashline-specific configuration flags.
 
-#### Scenario: Hashline behavior is disabled by configuration
-- **WHEN** hashline edit or its related hook is disabled in plugin configuration
-- **THEN** the plugin SHALL not register or apply the disabled behavior
+#### Scenario: Plugin loads with default options
+- **WHEN** the host loads the plugin without hashline-specific options
+- **THEN** the plugin SHALL register the edit tool and apply hashline-aware read enhancement for supported read output
+
+#### Scenario: Legacy hashline toggle values do not disable behavior
+- **WHEN** the caller provides former hashline enable or disable flags in plugin options
+- **THEN** the plugin SHALL keep the edit tool and read enhancement enabled
 
 ### Requirement: Plugin scopes first release to minimal hashline functionality
-The system SHALL keep the first release focused on hashline-related read, edit, configuration, and hook integration, and SHALL exclude unrelated command, agent, or manager features from the reference implementation.
+The system SHALL keep the first release focused on hashline-related read, edit, and hook integration, and SHALL exclude unrelated command, agent, or manager features from the reference implementation.
 
 #### Scenario: Non-hashline reference features remain out of scope
 - **WHEN** the first release is implemented
