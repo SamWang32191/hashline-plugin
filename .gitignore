@@ -1,0 +1,4 @@
+.worktrees/
+.loop/
+node_modules/
+dist/
