@@ -2,3 +2,4 @@
 .loop/
 node_modules/
 dist/
+.ref/
