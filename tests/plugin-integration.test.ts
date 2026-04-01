@@ -12,10 +12,10 @@ describe("HashlinePlugin", () => {
     $: {} as never,
   }
 
-  it("does not register hashline behavior when disabled", async () => {
-    const hooks = await HashlinePlugin(input, { hashline_edit: false })
+  it("registers hashline behavior with default options", async () => {
+    const hooks = await HashlinePlugin(input)
 
-    expect(hooks.tool?.edit).toBeUndefined()
+    expect(hooks.tool?.edit).toBeDefined()
     expect(hooks["tool.execute.after"]).toBeDefined()
 
     const output = { title: "read", output: "1: hello", metadata: {} }
@@ -24,11 +24,14 @@ describe("HashlinePlugin", () => {
       output,
     )
 
-    expect(output.output).toBe("1: hello")
+    expect(output.output).toMatch(/^1#[A-Z]{2}\|hello$/)
   })
 
-  it("registers edit tool and rewrites read output when enabled", async () => {
-    const hooks = await HashlinePlugin(input, { hashline_edit: true })
+  it("keeps hashline behavior enabled when legacy flags are provided", async () => {
+    const hooks = await HashlinePlugin(input, {
+      hashline_edit: false,
+      hooks: { hashline_read_enhancer: false },
+    })
 
     expect(hooks.tool?.edit).toBeDefined()
     expect(hooks["tool.execute.after"]).toBeDefined()
