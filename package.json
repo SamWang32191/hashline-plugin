@@ -1,10 +1,38 @@
 {
-  "name": "hashline-plugin",
+  "name": "@samwang32191/hashline-plugin",
   "version": "0.1.0",
-  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "description": "OpenCode plugin that adds hashline-aware read and edit behavior.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samwang32191/hashline-plugin.git"
+  },
+  "homepage": "https://github.com/samwang32191/hashline-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/samwang32191/hashline-plugin/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "prepack": "bun run build",
   "type": "module",
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun",
+    "build": "rm -rf dist && bun build ./src/index.ts --outdir ./dist --target bun --format esm && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },

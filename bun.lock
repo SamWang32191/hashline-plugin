@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "hashline-plugin",
+      "name": "@samwang32191/hashline-plugin",
       "dependencies": {
         "@opencode-ai/plugin": "1.3.13",
       },

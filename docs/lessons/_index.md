@@ -4,4 +4,5 @@
 
 | Card | Scope | Tags | Date |
 |---|---|---|---|
+| `npm-pack-needs-npmignore-for-dist` | project | npm, packaging, gitignore, typescript, release | 2026-04-01 |
 | `opencode-plugin-bundler-tsconfig` | project | opencode, bun, typescript, plugin, build | 2026-04-01 |
