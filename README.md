@@ -1,11 +1,11 @@
-# @samwang32191/hashline-plugin
+# @w32191/hashline-plugin
 
 Hashline plugin for OpenCode that adds hashline-aware read output and guarded edit operations.
 
 ## Install
 
 ```bash
-npm install @samwang32191/hashline-plugin
+npm install @w32191/hashline-plugin
 ```
 
 ## Package contents

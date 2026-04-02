@@ -1,5 +1,5 @@
 {
-  "name": "@samwang32191/hashline-plugin",
+  "name": "@w32191/hashline-plugin",
   "version": "0.1.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
