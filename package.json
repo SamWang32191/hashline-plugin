@@ -19,11 +19,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/samwang32191/hashline-plugin.git"
+    "url": "https://github.com/SamWang32191/hashline-plugin"
   },
-  "homepage": "https://github.com/samwang32191/hashline-plugin#readme",
+  "homepage": "https://github.com/SamWang32191/hashline-plugin#readme",
   "bugs": {
-    "url": "https://github.com/samwang32191/hashline-plugin/issues"
+    "url": "https://github.com/SamWang32191/hashline-plugin/issues"
   },
   "publishConfig": {
     "access": "public",
