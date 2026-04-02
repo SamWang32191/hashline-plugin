@@ -1,6 +1,6 @@
 {
   "name": "@w32191/hashline-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "description": "OpenCode plugin that adds hashline-aware read and edit behavior.",
