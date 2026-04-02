@@ -3,9 +3,18 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+      auto-bump:
+        description: Auto bump release version
+        required: false
+        type: choice
+        default: "no"
+        options:
+          - "no"
+          - "patch"
+          - "minor"
       version:
         description: Release version (strict semver, no leading v)
-        required: true
+        required: false
         type: string
       notes:
         description: Release notes
@@ -26,8 +35,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  auto-bump:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.auto-bump != 'no' }}
+    outputs:
+      bumped_version: ${{ inputs.auto-bump == 'patch' && steps.bump.outputs.patch || steps.bump.outputs.minor }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+        with:
+          fetch-depth: 0
+
+      - name: Read current version
+        id: package-meta
+        run: |
+          printf 'current_version=%s\n' "$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Compute bumped version
+        id: bump
+        uses: WyriHaximus/github-action-next-semvers@v1
+        with:
+          version: ${{ steps.package-meta.outputs.current_version }}
+
   ensure-release-readiness:
     runs-on: ubuntu-latest
+    if: ${{ !failure() }}
+    needs: [auto-bump]
     outputs:
       final_version: ${{ steps.resolve-version.outputs.final_version }}
       package_name: ${{ steps.package-meta.outputs.package_name }}
@@ -46,23 +79,34 @@ jobs:
       - name: Resolve and validate release version
         id: resolve-version
         env:
+          AUTO_BUMP_VERSION: ${{ needs.auto-bump.outputs.bumped_version }}
           INPUT_VERSION: ${{ inputs.version }}
           CURRENT_VERSION: ${{ steps.package-meta.outputs.current_version }}
         run: |
           node <<'EOF'
           const fs = require('node:fs')
 
+          const autoBumpVersion = process.env.AUTO_BUMP_VERSION ?? ''
           const input = process.env.INPUT_VERSION ?? ''
           const current = process.env.CURRENT_VERSION ?? ''
 
+          if (autoBumpVersion && input) {
+            throw new Error('Provide either auto-bump or version input, not both')
+          }
+
+          const finalVersion = autoBumpVersion || input
+
           const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
-          if (!input) throw new Error('version input is required')
-          if (input.startsWith('v')) throw new Error('version must not start with v')
-          if (!semver.test(input)) throw new Error('version must match X.Y.Z')
+          if (!finalVersion) {
+            throw new Error('Either select auto-bump or provide version input')
+          }
+
+          if (finalVersion.startsWith('v')) throw new Error('version must not start with v')
+          if (!semver.test(finalVersion)) throw new Error('version must match X.Y.Z')
           if (!semver.test(current)) throw new Error(`current package version is not strict semver: ${current}`)
 
           const toTuple = (value) => value.split('.').map((part) => Number(part))
-          const [inMajor, inMinor, inPatch] = toTuple(input)
+          const [inMajor, inMinor, inPatch] = toTuple(finalVersion)
           const [curMajor, curMinor, curPatch] = toTuple(current)
 
           const isGreater =
@@ -71,10 +115,10 @@ jobs:
             (inMajor === curMajor && inMinor === curMinor && inPatch > curPatch)
 
           if (!isGreater) {
-            throw new Error(`version ${input} must be greater than current version ${current}`)
+            throw new Error(`version ${finalVersion} must be greater than current version ${current}`)
           }
 
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `final_version=${input}\n`)
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `final_version=${finalVersion}\n`)
           EOF
 
       - name: Check release state
@@ -256,7 +300,7 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: |
           set -euo pipefail
-          unset NODE_AUTH_TOKEN NPM_TOKEN NPM_CONFIG_USERCONFIG npm_config_userconfig
+          unset NODE_AUTH_TOKEN NPM_TOKEN
           npm config delete //registry.npmjs.org/:_authToken || true
           rm -f ~/.npmrc .npmrc || true
           npm publish --provenance --access public --registry=https://registry.npmjs.org/
