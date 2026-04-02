@@ -10,9 +10,16 @@
 
 ## Workflow inputs
 
+- `auto-bump`: `no|patch|minor`，預設 `no`
 - `version`: 發佈版本
 - `notes`: release notes（選填）
-- `dry_run`: 先走完整驗證與本地 release 模擬，不做 npm publish / remote push / GitHub release
+- `dry_run`: 先走完整驗證與本地 release 模擬，不做 npm publish / remote push / GitHub release；只會產生 dry-run summary，不會變更遠端狀態
+
+## Input rules
+
+- 只有在 `auto-bump=no` 時才提供 `version`
+- 驗證 `auto-bump` 時，`version` 必須留空
+- 同時提供 `auto-bump` 與 `version` 會在 readiness 階段失敗
 
 ## Dry run
 
