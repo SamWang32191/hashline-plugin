@@ -2,12 +2,6 @@
 
 Hashline plugin for OpenCode that adds hashline-aware read output and guarded edit operations.
 
-## Install
-
-```bash
-npm install @w32191/hashline-plugin
-```
-
 ## Configure in `opencode.json`
 
 According to the official OpenCode plugin docs, npm plugins are configured with the singular `plugin` key in `opencode.json`.
