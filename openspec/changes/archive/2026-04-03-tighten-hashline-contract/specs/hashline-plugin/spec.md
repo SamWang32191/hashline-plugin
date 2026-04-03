@@ -1,15 +1,4 @@
-## Purpose
-
-TBD.
-
-## Requirements
-
-### Requirement: Plugin exposes hashline capability entrypoint
-The system SHALL provide a loadable plugin entrypoint that registers hashline-related tools and hooks in a deterministic order.
-
-#### Scenario: Plugin initializes hashline components
-- **WHEN** the host loads the plugin
-- **THEN** the plugin SHALL register its hashline tools and hooks during plugin initialization
+## MODIFIED Requirements
 
 ### Requirement: Plugin supports hashline-aware read output
 The system SHALL transform supported read results into a hashline-aware line format that preserves the original line number, preserves the visible line content, and attaches a stable four-character hash token derived from the line number and normalized line content for each emitted line. Lines that do not match a supported read-line format SHALL remain unchanged.
@@ -48,21 +37,3 @@ The system SHALL expose a replace-only hashline edit capability that accepts anc
 #### Scenario: Unsupported edit operations are rejected
 - **WHEN** the caller submits an operation outside the replace-only hashline contract
 - **THEN** the system SHALL reject the request without modifying the file
-
-### Requirement: Plugin always enables core hashline behavior
-The system SHALL register the hashline edit capability and apply hashline-aware read enhancement whenever the plugin is loaded, without requiring hashline-specific configuration flags.
-
-#### Scenario: Plugin loads with default options
-- **WHEN** the host loads the plugin without hashline-specific options
-- **THEN** the plugin SHALL register the edit tool and apply hashline-aware read enhancement for supported read output
-
-#### Scenario: Legacy hashline toggle values do not disable behavior
-- **WHEN** the caller provides former hashline enable or disable flags in plugin options
-- **THEN** the plugin SHALL keep the edit tool and read enhancement enabled
-
-### Requirement: Plugin scopes first release to minimal hashline functionality
-The system SHALL keep the first release focused on hashline-related read, edit, and hook integration, and SHALL exclude unrelated command, agent, or manager features from the reference implementation.
-
-#### Scenario: Non-hashline reference features remain out of scope
-- **WHEN** the first release is implemented
-- **THEN** the delivered plugin SHALL omit unrelated command-discovery, agent orchestration, and other non-hashline reference features

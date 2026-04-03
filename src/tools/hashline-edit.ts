@@ -4,8 +4,8 @@ import { tool } from "@opencode-ai/plugin"
 import { computeLineHash, isHashReference } from "../hashline/hash"
 
 export type HashlineEdit = {
-  op: "replace" | "append" | "prepend"
-  pos?: string
+  op: "replace"
+  pos: string
   lines: string[] | null
 }
 
@@ -57,7 +57,7 @@ export async function executeHashlineEdit(
   }
 
   for (const edit of input.edits) {
-    if (edit.op !== "replace" || !edit.pos) {
+    if (edit.op !== "replace") {
       return { ok: false, message: "Error: unsupported edit operation", diff: "" }
     }
 
@@ -95,18 +95,18 @@ export async function executeHashlineEdit(
 
 export function createHashlineEditTool() {
   return tool({
-    description: "Edit a file using hashline references",
+    description: "Replace file lines using hashline references",
     args: {
       filePath: tool.schema.string().describe("Absolute path to the target file"),
       edits: tool.schema
         .array(
           tool.schema.object({
-            op: tool.schema.enum(["replace", "append", "prepend"]),
-            pos: tool.schema.string().optional(),
+            op: tool.schema.enum(["replace"]),
+            pos: tool.schema.string(),
             lines: tool.schema.array(tool.schema.string()).nullable(),
           }),
         )
-        .describe("Hashline edits to apply"),
+        .describe("Replace-only hashline edits to apply"),
     },
     async execute(args, context) {
       const result = await executeHashlineEdit(args)

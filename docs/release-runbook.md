@@ -15,6 +15,13 @@
 - `notes`: release notes（選填）
 - `dry_run`: 先走完整驗證與本地 release 模擬，不做 npm publish / remote push / GitHub release；只會產生 dry-run summary，不會變更遠端狀態
 
+## Release notes guidance
+
+- 若是 **BREAKING** release，不要留空 `notes`。
+- 若本次 release 包含 hashline anchor 格式變更，release notes 應明確標示 **BREAKING**。
+- 目前 hashline contract 使用 **4 碼 visible token**；若從舊的 2 碼 token 版本升級，使用者與 agent 必須先重新 `read`，再執行 hashline edit。
+- 建議在 release notes 直接寫出：`Re-read files before using hashline edits after upgrading.`
+
 ## Input rules
 
 - 只有在 `auto-bump=no` 時才提供 `version`

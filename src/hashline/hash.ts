@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 
 const ALPHABET = "ZPMQVRWSNKTXJBYH"
+const HASH_TOKEN_LENGTH = 4
 
 function normalizeContent(content: string): string {
   return content.replace(/\r/g, "").trimEnd()
@@ -12,9 +13,7 @@ export function computeLineHash(lineNumber: number, content: string): string {
     .update(`${lineNumber}:${normalized}`)
     .digest()
 
-  const first = ALPHABET[digest[0] % ALPHABET.length]
-  const second = ALPHABET[digest[1] % ALPHABET.length]
-  return `${first}${second}`
+  return Array.from({ length: HASH_TOKEN_LENGTH }, (_, index) => ALPHABET[digest[index] % ALPHABET.length]).join("")
 }
 
 export function formatHashLine(lineNumber: number, content: string): string {
@@ -22,5 +21,5 @@ export function formatHashLine(lineNumber: number, content: string): string {
 }
 
 export function isHashReference(value: string): boolean {
-  return /^\d+#[A-Z]{2}$/.test(value)
+  return new RegExp(`^\\d+#[A-Z]{${HASH_TOKEN_LENGTH}}$`).test(value)
 }
