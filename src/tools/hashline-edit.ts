@@ -1,3 +1,4 @@
+import { createTwoFilesPatch } from "diff"
 import { readFile, writeFile } from "node:fs/promises"
 import { tool } from "@opencode-ai/plugin"
 
@@ -18,24 +19,85 @@ export type ExecuteHashlineEditResult = {
   ok: boolean
   message: string
   diff: string
+  metadata?: {
+    filePath: string
+    path: string
+    file: string
+    diff: string
+    firstChangedLine: number
+    filediff: {
+      filePath: string
+      path: string
+      file: string
+      before: string
+      after: string
+      additions: number
+      deletions: number
+    }
+  }
 }
 
-function buildDiff(beforeText: string, afterText: string): string {
-  const beforeLines = beforeText.replace(/\r/g, "").split("\n")
-  const afterLines = afterText.replace(/\r/g, "").split("\n")
-  const max = Math.max(beforeLines.length, afterLines.length)
-  const chunks: string[] = []
+function buildDiff(beforeText: string, afterText: string, filePath: string): string {
+  const diff = beforeText === afterText
+    ? ""
+    : createTwoFilesPatch(filePath, filePath, beforeText, afterText, undefined, undefined, {
+      context: 3,
+    })
 
-  for (let index = 0; index < max; index += 1) {
-    const beforeLine = beforeLines[index]
-    const afterLine = afterLines[index]
+  return diff
+}
 
-    if (beforeLine === afterLine) continue
-    if (beforeLine !== undefined) chunks.push(`-${beforeLine}`)
-    if (afterLine !== undefined) chunks.push(`+${afterLine}`)
+function applyHashlineEditsAndCountDiffs(
+  lines: string[],
+  edits: HashlineEdit[],
+): {
+  additions: number
+  deletions: number
+  firstChangedLine: number
+} {
+  let additions = 0
+  let deletions = 0
+  let firstChangedLine = 0
+
+  for (const edit of edits) {
+    if (edit.op !== "replace") {
+      throw new Error("unsupported edit operation")
+    }
+
+    const parsed = parsePosition(edit.pos)
+    if (!parsed) {
+      throw new Error("invalid hash reference")
+    }
+
+    const currentLine = lines[parsed.lineNumber - 1]
+    if (currentLine === undefined) {
+      throw new Error("line out of range")
+    }
+
+    const currentHash = computeLineHash(parsed.lineNumber, currentLine)
+    if (currentHash !== parsed.hash) {
+      throw new Error(`hash mismatch - expected ${parsed.lineNumber}#${currentHash}|${currentLine}`)
+    }
+
+    const replacementLines = edit.lines ?? []
+    const isNoop = replacementLines.length === 1 && replacementLines[0] === currentLine
+
+    if (!isNoop) {
+      firstChangedLine = firstChangedLine === 0
+        ? parsed.lineNumber
+        : Math.min(firstChangedLine, parsed.lineNumber)
+      additions += replacementLines.length
+      deletions += 1
+    }
+
+    lines.splice(parsed.lineNumber - 1, 1, ...replacementLines)
   }
 
-  return chunks.join("\n")
+  return {
+    additions,
+    deletions,
+    firstChangedLine: firstChangedLine === 0 ? 0 : firstChangedLine,
+  }
 }
 
 function parsePosition(position: string): { lineNumber: number; hash: string } | null {
@@ -56,40 +118,67 @@ export async function executeHashlineEdit(
     lines.pop()
   }
 
-  for (const edit of input.edits) {
-    if (edit.op !== "replace") {
-      return { ok: false, message: "Error: unsupported edit operation", diff: "" }
-    }
+  const editStats = {
+    additions: 0,
+    deletions: 0,
+    firstChangedLine: 0,
+  }
 
-    const parsed = parsePosition(edit.pos)
-    if (!parsed) {
-      return { ok: false, message: "Error: invalid hash reference", diff: "" }
-    }
-
-    const currentLine = lines[parsed.lineNumber - 1]
-    if (currentLine === undefined) {
-      return { ok: false, message: "Error: line out of range", diff: "" }
-    }
-
-    const currentHash = computeLineHash(parsed.lineNumber, currentLine)
-    if (currentHash !== parsed.hash) {
-      return {
-        ok: false,
-        message: `Error: hash mismatch - expected ${parsed.lineNumber}#${currentHash}|${currentLine}`,
-        diff: "",
+  try {
+    const updated = applyHashlineEditsAndCountDiffs(lines, input.edits)
+    Object.assign(editStats, updated)
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "unsupported edit operation") {
+        return { ok: false, message: "Error: unsupported edit operation", diff: "" }
+      }
+      if (error.message === "invalid hash reference") {
+        return { ok: false, message: "Error: invalid hash reference", diff: "" }
+      }
+      if (error.message === "line out of range") {
+        return { ok: false, message: "Error: line out of range", diff: "" }
+      }
+      if (error.message.startsWith("hash mismatch")) {
+        return {
+          ok: false,
+          message: `Error: ${error.message}`,
+          diff: "",
+        }
       }
     }
-
-    lines.splice(parsed.lineNumber - 1, 1, ...(edit.lines ?? []))
+    throw error
   }
 
   const afterText = `${lines.join(lineEnding)}${hadTrailingNewline ? lineEnding : ""}`
+  const fileDiff = buildDiff(beforeText, afterText, input.filePath)
   await writeFile(input.filePath, afterText)
+
+  const finalAdditions = beforeText === afterText ? 0 : editStats.additions
+  const finalDeletions = beforeText === afterText ? 0 : editStats.deletions
+  const finalFirstChangedLine = beforeText === afterText ? 0 : editStats.firstChangedLine
+
+  const metadata = {
+    filePath: input.filePath,
+    path: input.filePath,
+    file: input.filePath,
+    diff: fileDiff,
+    firstChangedLine: finalFirstChangedLine,
+    filediff: {
+        filePath: input.filePath,
+        path: input.filePath,
+        file: input.filePath,
+        before: beforeText,
+        after: afterText,
+        additions: finalAdditions,
+        deletions: finalDeletions,
+      },
+  }
 
   return {
     ok: true,
     message: `Updated ${input.filePath}`,
-    diff: buildDiff(beforeText, afterText),
+    diff: fileDiff,
+    metadata,
   }
 }
 
@@ -113,10 +202,7 @@ export function createHashlineEditTool() {
       if (result.ok) {
         context.metadata({
           title: args.filePath,
-          metadata: {
-            filePath: args.filePath,
-            diff: result.diff,
-          },
+          metadata: result.metadata,
         })
       }
       return result.message

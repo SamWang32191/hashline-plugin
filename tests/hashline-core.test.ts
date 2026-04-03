@@ -68,7 +68,7 @@ describe("hashline core", () => {
     }
   })
 
-  it("applies matching hashline edits and returns diff metadata", async () => {
+  it("applies matching hashline edits and returns unified diff", async () => {
     const dir = await mkdtemp(join(tmpdir(), "hashline-plugin-"))
     const filePath = join(dir, "example.txt")
 
@@ -87,9 +87,104 @@ describe("hashline core", () => {
       })
 
       expect(result.ok).toBe(true)
+      expect(result.diff).toContain(`--- ${filePath}`)
+      expect(result.diff).toContain(`+++ ${filePath}`)
+      expect(result.diff).toContain("@@")
       expect(result.diff).toContain("-alpha")
       expect(result.diff).toContain("+ALPHA")
+      expect(result.metadata?.diff).toContain(`--- ${filePath}`)
+      expect(result.metadata?.diff).toContain(`+++ ${filePath}`)
       expect(await readFile(filePath, "utf8")).toBe("ALPHA\nbeta\n")
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("executeHashlineEdit returns rich metadata on success", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "hashline-plugin-"))
+    const filePath = join(dir, "example.txt")
+    const beforeText = "alpha\nbeta\n"
+    const afterText = "alpha\nBETA\n"
+    const expectedMetadata = {
+      filePath,
+      path: filePath,
+      file: filePath,
+      firstChangedLine: 2,
+      filediff: {
+        filePath,
+        path: filePath,
+        file: filePath,
+        before: beforeText,
+        after: afterText,
+        additions: 1,
+        deletions: 1,
+      },
+    }
+
+    try {
+      await writeFile(filePath, beforeText)
+
+      const result = (await executeHashlineEdit({
+        filePath,
+        edits: [
+          {
+            op: "replace",
+            pos: `2#${computeLineHash(2, "beta")}`,
+            lines: ["BETA"],
+          },
+        ],
+      }) as any)
+
+      expect(result.ok).toBe(true)
+      expect(result.metadata).toMatchObject(expectedMetadata)
+      expect(result.metadata?.diff).toContain(`--- ${filePath}`)
+      expect(result.metadata?.diff).toContain(`+++ ${filePath}`)
+      expect(result.metadata?.diff).toContain("-beta")
+      expect(result.metadata?.diff).toContain("+BETA")
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("is no-op when replacement lines are unchanged", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "hashline-plugin-"))
+    const filePath = join(dir, "example.txt")
+    const beforeText = "alpha\nbeta\n"
+    const expectedMetadata = {
+      filePath,
+      path: filePath,
+      file: filePath,
+      diff: "",
+      firstChangedLine: 0,
+      filediff: {
+        filePath,
+        path: filePath,
+        file: filePath,
+        before: beforeText,
+        after: beforeText,
+        additions: 0,
+        deletions: 0,
+      },
+    }
+
+    try {
+      await writeFile(filePath, beforeText)
+
+      const result = await executeHashlineEdit({
+        filePath,
+        edits: [
+          {
+            op: "replace",
+            pos: `2#${computeLineHash(2, "beta")}`,
+            lines: ["beta"],
+          },
+        ],
+      })
+
+      expect(result.ok).toBe(true)
+      expect(result.diff).toBe("")
+      expect(result.metadata).toEqual(expectedMetadata)
+      expect(await readFile(filePath, "utf8")).toBe(beforeText)
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
@@ -98,9 +193,26 @@ describe("hashline core", () => {
   it("supports deleting an anchored line", async () => {
     const dir = await mkdtemp(join(tmpdir(), "hashline-plugin-"))
     const filePath = join(dir, "example.txt")
+    const beforeText = "alpha\nbeta\ngamma\n"
+    const afterText = "alpha\ngamma\n"
+    const expectedMetadata = {
+      filePath,
+      path: filePath,
+      file: filePath,
+      firstChangedLine: 2,
+      filediff: {
+        filePath,
+        path: filePath,
+        file: filePath,
+        before: beforeText,
+        after: afterText,
+        additions: 0,
+        deletions: 1,
+      },
+    }
 
     try {
-      await writeFile(filePath, "alpha\nbeta\ngamma\n")
+      await writeFile(filePath, beforeText)
 
       const result = await executeHashlineEdit({
         filePath,
@@ -114,7 +226,80 @@ describe("hashline core", () => {
       })
 
       expect(result.ok).toBe(true)
+      expect(result.metadata).toMatchObject(expectedMetadata)
+      expect(result.metadata?.diff).toContain(`--- ${filePath}`)
+      expect(result.metadata?.diff).toContain(`+++ ${filePath}`)
+      expect(result.metadata?.diff).toContain("-beta")
       expect(await readFile(filePath, "utf8")).toBe("alpha\ngamma\n")
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("forwards rich metadata from createHashlineEditTool", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "hashline-plugin-"))
+    const filePath = join(dir, "example.txt")
+    const beforeText = "alpha\nbeta\n"
+    const afterText = "ALPHA\nbeta\n"
+    const expectedMetadata = {
+      filePath,
+      path: filePath,
+      file: filePath,
+      firstChangedLine: 1,
+      filediff: {
+        filePath,
+        path: filePath,
+        file: filePath,
+        before: beforeText,
+        after: afterText,
+        additions: 1,
+        deletions: 1,
+      },
+    }
+    const observedMetadata: unknown[] = []
+
+    try {
+      await writeFile(filePath, beforeText)
+
+      const editTool = createHashlineEditTool() as any
+      const result = await editTool.execute(
+        {
+          filePath,
+          edits: [
+            {
+              op: "replace",
+              pos: `1#${computeLineHash(1, "alpha")}`,
+              lines: ["ALPHA"],
+            },
+          ],
+        },
+        {
+          metadata: (payload: unknown) => {
+            observedMetadata.push(payload)
+          },
+        },
+      )
+
+      expect(result).toBe(`Updated ${filePath}`)
+      expect(observedMetadata).toHaveLength(1)
+
+      const metadataPayload = observedMetadata[0] as {
+        title?: string
+        metadata?: Record<string, unknown>
+      }
+
+      expect(metadataPayload).toMatchObject({
+        title: filePath,
+        metadata: expectedMetadata,
+      })
+
+      const actualMetadata = metadataPayload.metadata as {
+        diff?: string
+      }
+      expect(actualMetadata.diff).toContain(`--- ${filePath}`)
+      expect(actualMetadata.diff).toContain(`+++ ${filePath}`)
+      expect(actualMetadata.diff).toContain("-alpha")
+      expect(actualMetadata.diff).toContain("+ALPHA")
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
@@ -123,9 +308,26 @@ describe("hashline core", () => {
   it("supports replacing one anchored line with multiple lines", async () => {
     const dir = await mkdtemp(join(tmpdir(), "hashline-plugin-"))
     const filePath = join(dir, "example.txt")
+    const beforeText = "alpha\nbeta\ngamma\n"
+    const afterText = "alpha\nBETA\nbeta-2\ngamma\n"
+    const expectedMetadata = {
+      filePath,
+      path: filePath,
+      file: filePath,
+      firstChangedLine: 2,
+      filediff: {
+        filePath,
+        path: filePath,
+        file: filePath,
+        before: beforeText,
+        after: afterText,
+        additions: 2,
+        deletions: 1,
+      },
+    }
 
     try {
-      await writeFile(filePath, "alpha\nbeta\ngamma\n")
+      await writeFile(filePath, beforeText)
 
       const result = await executeHashlineEdit({
         filePath,
@@ -139,7 +341,60 @@ describe("hashline core", () => {
       })
 
       expect(result.ok).toBe(true)
+      expect(result.metadata).toMatchObject(expectedMetadata)
+      expect(result.metadata?.diff).toContain(`--- ${filePath}`)
+      expect(result.metadata?.diff).toContain(`+++ ${filePath}`)
+      expect(result.metadata?.diff).toContain("-beta")
+      expect(result.metadata?.diff).toContain("+BETA")
       expect(await readFile(filePath, "utf8")).toBe("alpha\nBETA\nbeta-2\ngamma\n")
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("uses the earliest changed line across out-of-order edits", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "hashline-plugin-"))
+    const filePath = join(dir, "example.txt")
+    const beforeText = "alpha\nbeta\ngamma\ndelta\n"
+    const afterText = "alpha\nBETA\ngamma\nDELTA\n"
+    const expectedMetadata = {
+      filePath,
+      path: filePath,
+      file: filePath,
+      firstChangedLine: 2,
+      filediff: {
+        filePath,
+        path: filePath,
+        file: filePath,
+        before: beforeText,
+        after: afterText,
+        additions: 2,
+        deletions: 2,
+      },
+    }
+
+    try {
+      await writeFile(filePath, beforeText)
+
+      const result = (await executeHashlineEdit({
+        filePath,
+        edits: [
+          {
+            op: "replace",
+            pos: `4#${computeLineHash(4, "delta")}`,
+            lines: ["DELTA"],
+          },
+          {
+            op: "replace",
+            pos: `2#${computeLineHash(2, "beta")}`,
+            lines: ["BETA"],
+          },
+        ],
+      }) as any)
+
+      expect(result.ok).toBe(true)
+      expect(result.metadata).toMatchObject(expectedMetadata)
+      expect(await readFile(filePath, "utf8")).toBe(afterText)
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
