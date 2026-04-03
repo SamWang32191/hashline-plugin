@@ -6,7 +6,7 @@ import { computeLineHash, formatHashLine } from "./hashline/hash"
 import { createReadEnhancer } from "./hooks/hashline-read-enhancer"
 import { createHashlineEditTool, executeHashlineEdit } from "./tools/hashline-edit"
 
-const HashlinePlugin: Plugin = async () => {
+const server: Plugin = async () => {
   const tools: Record<string, ToolDefinition> = {
     edit: createHashlineEditTool(),
   }
@@ -17,7 +17,9 @@ const HashlinePlugin: Plugin = async () => {
   }
 }
 
-export default HashlinePlugin
+export default server
+
+export { server }
 
 export {
   computeLineHash,

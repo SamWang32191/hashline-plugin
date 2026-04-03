@@ -50,6 +50,11 @@ Notes:
 - OpenCode installs npm plugins automatically at startup.
 - Official docs: <https://opencode.ai/docs/plugins/> and <https://opencode.ai/docs/config/>
 
+### Loader compatibility
+
+- `src/index.ts` exports a named `server` plugin function (and keeps `default` export for backward compatibility).
+- `package.json` declares `oc-plugin.targets` with `server` so OpenCode npm loader can discover the server target.
+
 ## Package contents
 
 - `dist/index.js`: bundled plugin entrypoint

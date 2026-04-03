@@ -16,6 +16,11 @@
     "README.md",
     "LICENSE"
   ],
+  "oc-plugin": {
+    "targets": [
+      "server"
+    ]
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
