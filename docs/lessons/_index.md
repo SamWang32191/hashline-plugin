@@ -4,6 +4,7 @@
 
 | Card | Scope | Tags | Date |
 |---|---|---|---|
+| `npm-pack-dry-run-needs-built-dist` | project | npm, packaging, dry-run, prepack, dist | 2026-04-03 |
 | `gh-workflow-run-needs-pushed-inputs` | project | github-actions, gh-cli, workflow-dispatch, release, validation | 2026-04-02 |
 | `npm-pack-needs-npmignore-for-dist` | project | npm, packaging, gitignore, typescript, release | 2026-04-01 |
 | `opencode-plugin-bundler-tsconfig` | project | opencode, bun, typescript, plugin, build | 2026-04-01 |
